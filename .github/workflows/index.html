@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fundi Mtaani — Admin</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDK — simplest for a single-file app) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.0/firebase-database-compat.min.js"></script>
+
+<style>
+:root{
+  --primary:#2c8cff; --primary-dark:#1a6fd8; --secondary:#2cffd6; --accent:#ff6b6b;
+  --warning:#ffd166; --success:#06d6a0; --dark:#1a2535; --light:#f8fafd;
+  --gray:#6c757d; --light-gray:#e9ecef; --shadow:0 10px 30px rgba(0,0,0,.1);
+  --radius:12px; --font-display:'Syne',sans-serif; --font-body:'DM Sans',sans-serif;
+  --sidebar-w:230px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-body);background:var(--light);color:var(--dark);-webkit-font-smoothing:antialiased;}
+h1,h2,h3,h4{font-family:var(--font-display);letter-spacing:-.02em;}
+button,input,select,textarea{font-family:var(--font-body);}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:8px;height:8px;} ::-webkit-scrollbar-thumb{background:#c9d3e0;border-radius:8px;}
+
+/* ===== LOGIN ===== */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#1a2535,#132033,#0f1826);background-size:220% 220%;animation:bgShift 14s ease-in-out infinite;display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;overflow:hidden;}
+#loginScreen::before,#loginScreen::after{content:'';position:absolute;border-radius:50%;filter:blur(60px);opacity:.25;pointer-events:none;}
+#loginScreen::before{width:340px;height:340px;background:var(--primary);top:-120px;left:-100px;animation:floatBlob 9s ease-in-out infinite;}
+#loginScreen::after{width:280px;height:280px;background:var(--secondary);bottom:-100px;right:-80px;animation:floatBlob 11s ease-in-out infinite reverse;}
+@keyframes bgShift{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+@keyframes floatBlob{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(30px,-20px) scale(1.08);}}
+.login-card{position:relative;z-index:1;background:#fff;border-radius:20px;padding:40px 34px;width:100%;max-width:380px;box-shadow:0 30px 80px rgba(0,0,0,.4);text-align:center;opacity:0;animation:cardIn .55s cubic-bezier(.2,.8,.2,1) forwards;}
+@keyframes cardIn{from{opacity:0;transform:translateY(22px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+.login-logo{position:relative;width:68px;height:68px;border-radius:16px;margin:0 auto 14px;overflow:hidden;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:flex;align-items:center;justify-content:center;font-size:30px;opacity:0;transform:scale(.4) rotate(-18deg);animation:logoIn .6s cubic-bezier(.22,1.4,.4,1) .15s forwards, logoGlow 2.6s ease-in-out .75s infinite;}
+.login-logo img,.login-logo-glyph{width:100%;height:100%;object-fit:cover;display:flex;align-items:center;justify-content:center;animation:logoFloat 3.2s ease-in-out .8s infinite;}
+.login-logo::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.55) 48%,transparent 64%);background-size:250% 250%;background-position:-130% -130%;animation:logoShine 3.8s ease-in-out .9s infinite;pointer-events:none;}
+@keyframes logoIn{0%{opacity:0;transform:scale(.4) rotate(-18deg);}60%{opacity:1;transform:scale(1.08) rotate(4deg);}100%{opacity:1;transform:scale(1) rotate(0deg);}}
+@keyframes logoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+@keyframes logoGlow{0%,100%{box-shadow:0 0 0 0 rgba(44,140,255,.35);}50%{box-shadow:0 0 0 12px rgba(44,140,255,0);}}
+@keyframes logoShine{0%,55%{background-position:-130% -130%;}75%,100%{background-position:130% 130%;}}
+.login-card h1{font-size:1.3rem;color:var(--dark);}
+.login-card p{color:var(--gray);font-size:.85rem;margin-bottom:22px;}
+.login-card input{width:100%;padding:12px 14px;border:1.5px solid var(--light-gray);border-radius:10px;margin-bottom:12px;font-size:.92rem;transition:border-color .15s;}
+.login-card input:focus{outline:none;border-color:var(--primary);}
+.login-btn{position:relative;width:100%;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;font-weight:700;font-size:.95rem;cursor:pointer;transition:transform .12s, opacity .15s;}
+.login-btn:active{transform:scale(.98);}
+.login-btn:disabled{opacity:.75;cursor:default;}
+.login-btn .btn-spinner{display:none;}
+.login-btn.loading .btn-label{visibility:hidden;}
+.login-btn.loading .btn-spinner{display:inline-block;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);animation:spin .7s linear infinite;}
+#loginError{display:none;align-items:center;gap:8px;text-align:left;color:var(--accent);background:rgba(255,107,107,.1);border:1.5px solid rgba(255,107,107,.25);border-radius:9px;padding:9px 12px;font-size:.8rem;margin-top:10px;}
+#loginError.show{display:flex;}
+#loginError.shake{animation:shake .4s;}
+@keyframes shake{10%,90%{transform:translateX(-1px);}20%,80%{transform:translateX(2px);}30%,50%,70%{transform:translateX(-4px);}40%,60%{transform:translateX(4px);}}
+.login-tabs{display:flex;gap:6px;background:var(--light-gray);border-radius:10px;padding:4px;margin-bottom:18px;}
+.login-tab{flex:1;padding:9px;border:none;background:transparent;border-radius:7px;font-size:.82rem;font-weight:700;color:var(--gray);cursor:pointer;transition:background .18s,color .18s;}
+.login-tab.active{background:#fff;color:var(--primary);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.login-pane{display:none;text-align:left;}
+.login-pane.active{display:block;animation:paneFade .25s ease;}
+@keyframes paneFade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+/* ===== APP SHELL ===== */
+#app{display:none;}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--dark);color:#fff;display:flex;flex-direction:column;z-index:60;transition:transform .25s ease;}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.08);}
+.sidebar-brand .logo-icon{width:36px;height:36px;border-radius:9px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));}
+.sidebar-brand .logo-icon img{width:100%;height:100%;object-fit:cover;}
+.sidebar-brand h2{font-size:.98rem;color:#fff;line-height:1.1;}
+.sidebar-brand span{font-size:.65rem;color:rgba(255,255,255,.5);}
+.nav-list{flex:1;overflow-y:auto;padding:14px 10px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;color:rgba(255,255,255,.68);font-size:.86rem;font-weight:600;cursor:pointer;margin-bottom:3px;position:relative;}
+.nav-item i{width:18px;text-align:center;font-size:.92rem;}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.nav-item.active{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:.65rem;font-weight:700;padding:1px 7px;border-radius:20px;min-width:18px;text-align:center;}
+.sidebar-foot{padding:14px;border-top:1px solid rgba(255,255,255,.08);}
+.sidebar-foot .who{font-size:.72rem;color:rgba(255,255,255,.5);margin-bottom:8px;word-break:break-all;}
+.logout-btn{width:100%;padding:10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#fff;border-radius:9px;font-size:.82rem;cursor:pointer;font-weight:600;}
+.logout-btn:hover{background:rgba(255,255,255,.08);}
+
+.main{margin-left:var(--sidebar-w);min-height:100vh;}
+.topbar{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--light-gray);padding:16px 26px;display:flex;align-items:center;justify-content:space-between;z-index:50;}
+.topbar h1{font-size:1.15rem;}
+.topbar .sub{font-size:.78rem;color:var(--gray);font-weight:500;}
+.mobile-menu-btn{display:none;background:none;border:none;font-size:1.2rem;color:var(--dark);cursor:pointer;}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;margin-right:6px;box-shadow:0 0 0 3px rgba(6,214,160,.2);}
+.conn-dot.off{background:var(--accent);box-shadow:0 0 0 3px rgba(255,107,107,.2);}
+
+.view{display:none;padding:24px 26px 60px;}
+.view.active{display:block;}
+
+/* KPI cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:26px;}
+.kpi-card{background:#fff;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);cursor:pointer;transition:.2s;border:1px solid var(--light-gray);}
+.kpi-card:hover{transform:translateY(-3px);}
+.kpi-card .num{font-family:var(--font-display);font-size:1.9rem;font-weight:800;color:var(--dark);}
+.kpi-card .lbl{font-size:.78rem;color:var(--gray);font-weight:600;margin-top:2px;}
+.kpi-card i{float:right;font-size:1.3rem;opacity:.25;}
+
+.panel{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--light-gray);overflow:hidden;margin-bottom:24px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--light-gray);flex-wrap:wrap;gap:10px;}
+.panel-head h3{font-size:1rem;}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.search-box{position:relative;}
+.search-box input{padding:9px 12px 9px 32px;border:1.5px solid var(--light-gray);border-radius:8px;font-size:.83rem;width:190px;}
+.search-box i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--gray);font-size:.8rem;}
+select.filter-select{padding:9px 10px;border:1.5px solid var(--light-gray);border-radius:8px;font-size:.83rem;color:var(--dark);background:#fff;}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;border:none;font-weight:700;font-size:.82rem;cursor:pointer;}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;}
+.btn-outline{background:#fff;border:1.5px solid var(--light-gray);color:var(--dark);}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary);}
+.btn-danger{background:rgba(255,107,107,.1);color:#c0392b;}
+.btn-danger:hover{background:var(--accent);color:#fff;}
+.btn-success{background:rgba(6,214,160,.12);color:#04876a;}
+.btn-success:hover{background:var(--success);color:#fff;}
+.btn-sm{padding:6px 11px;font-size:.74rem;}
+.btn:disabled{opacity:.5;cursor:default;}
+
+table{width:100%;border-collapse:collapse;font-size:.85rem;}
+thead th{text-align:left;padding:11px 20px;background:#f5f7fb;color:var(--gray);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;font-weight:700;white-space:nowrap;}
+tbody td{padding:12px 20px;border-top:1px solid var(--light-gray);vertical-align:middle;}
+tbody tr:hover{background:#fafbfd;}
+.cell-name{font-weight:700;color:var(--dark);}
+.cell-sub{font-size:.75rem;color:var(--gray);}
+.avatar-mini{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--light-gray);}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;}
+.badge-online{background:rgba(6,214,160,.14);color:#04876a;}
+.badge-offline{background:rgba(108,117,125,.13);color:#5a6268;}
+.badge-pending{background:rgba(255,209,102,.25);color:#8a6d00;}
+.badge-confirmed{background:rgba(44,140,255,.13);color:#1a6fd8;}
+.badge-completed{background:rgba(6,214,160,.14);color:#04876a;}
+.badge-cancelled{background:rgba(255,107,107,.14);color:#c0392b;}
+.badge-new{background:rgba(255,107,107,.14);color:#c0392b;}
+.badge-approved{background:rgba(6,214,160,.14);color:#04876a;}
+.badge-rejected{background:rgba(108,117,125,.13);color:#5a6268;}
+.row-actions{display:flex;gap:6px;}
+.icon-btn{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--light-gray);background:#fff;color:var(--gray);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;}
+.icon-btn:hover{border-color:var(--primary);color:var(--primary);}
+.icon-btn.danger:hover{border-color:var(--accent);color:var(--accent);}
+.empty-state{padding:50px 20px;text-align:center;color:var(--gray);}
+.empty-state i{font-size:2rem;margin-bottom:10px;opacity:.4;display:block;}
+.star-rating{color:var(--warning);letter-spacing:1px;}
+.table-scroll{overflow-x:auto;}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,20,30,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:16px;}
+.modal-overlay.active{display:flex;}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;box-shadow:0 30px 80px rgba(0,0,0,.4);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--light-gray);position:sticky;top:0;background:#fff;z-index:2;}
+.modal-head h3{font-size:1.05rem;}
+.modal-close{background:none;border:none;font-size:1.1rem;color:var(--gray);cursor:pointer;}
+.modal-body{padding:20px 22px;}
+.form-row{margin-bottom:14px;}
+.form-row.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+label{display:block;font-size:.78rem;font-weight:700;color:var(--dark);margin-bottom:5px;}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:10px 12px;border:1.5px solid var(--light-gray);border-radius:9px;font-size:.86rem;}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--primary);}
+.form-row textarea{resize:vertical;min-height:70px;}
+.checkbox-row{display:flex;align-items:center;gap:8px;}
+.checkbox-row input{width:auto;}
+.modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--light-gray);position:sticky;bottom:0;background:#fff;}
+.hint{font-size:.72rem;color:var(--gray);margin-top:4px;}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--dark);color:#fff;padding:12px 18px;border-radius:10px;font-size:.83rem;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:toastIn .25s ease;}
+.toast.success i{color:var(--success);} .toast.error i{color:var(--accent);}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.config-banner{background:#fff3cd;border:1px solid #ffe69c;color:#7a5b00;padding:12px 18px;font-size:.8rem;border-radius:10px;margin:16px 26px 0;display:flex;align-items:center;gap:10px;}
+
+.hidden{display:none !important;}
+.sync-btn{border:1.5px solid var(--light-gray);background:#fff;color:var(--dark);padding:9px 14px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.sync-btn:hover{border-color:var(--primary);color:var(--primary);}
+.sync-btn.spinning i{animation:spin 1s linear infinite;}
+.sync-btn:disabled{opacity:.6;cursor:default;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.role-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.65rem;font-weight:700;background:rgba(44,140,255,.13);color:var(--primary-dark);margin-left:6px;vertical-align:middle;}
+
+@media (max-width:900px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .mobile-menu-btn{display:block;}
+  .form-row.two-col{grid-template-columns:1fr;}
+  .search-box input{width:140px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><img class="login-logo-glyph" src="https://uploads.onecompiler.io/44cp49mwb/44d8826mt/1000006205.png" onerror="window.logoFallback&amp;&amp;window.logoFallback(this)"></div>
+    <script>window.logoFallback=function(el){var s=document.createElement('span');s.className='login-logo-glyph';s.textContent='🪡';el.replaceWith(s);};</script>
+    <h1>FUNDI MTAANI</h1>
+    <p>Sign in to continue</p>
+
+    <div class="login-tabs">
+      <button type="button" class="login-tab active" id="tabAdminBtn" onclick="switchLoginTab('admin')">Admin</button>
+      <button type="button" class="login-tab" id="tabFundiBtn" onclick="switchLoginTab('fundi')">Fundi</button>
+    </div>
+
+    <div class="login-pane active" id="paneAdmin">
+      <input type="text" id="loginEmail" placeholder="Admin username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="login-btn" id="loginBtn" onclick="doLogin()"><span class="btn-label">Sign In</span><i class="fas fa-circle-notch btn-spinner"></i></button>
+    </div>
+
+    <div class="login-pane" id="paneFundi">
+      <input type="tel" id="fundiPhone" placeholder="Phone (07XXXXXXXX)" autocomplete="username" onkeydown="if(event.key==='Enter')doFundiLogin()">
+      <input type="password" id="fundiPin" placeholder="PIN" inputmode="numeric" autocomplete="current-password" onkeydown="if(event.key==='Enter')doFundiLogin()">
+      <button class="login-btn" id="fundiLoginBtn" onclick="doFundiLogin()"><span class="btn-label">Sign In</span><i class="fas fa-circle-notch btn-spinner"></i></button>
+    </div>
+
+    <div id="loginError"><i class="fas fa-triangle-exclamation"></i><span id="loginErrorText"></span></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-icon"><img src="https://uploads.onecompiler.io/44cp49mwb/44d8826mt/1000006205.png" onerror="this.style.display='none'"></div>
+      <div><h2>FUNDI MTAANI</h2><span>Admin Backend</span></div>
+    </div>
+    <div class="nav-list" id="navList">
+      <div class="nav-item role-admin active" data-view="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</div>
+      <div class="nav-item role-admin" data-view="fundis"><i class="fas fa-user-hard-hat"></i> Fundis <span class="nav-badge" id="badgeFundis" style="display:none;"></span></div>
+      <div class="nav-item role-admin" data-view="bookings"><i class="fas fa-calendar-check"></i> Bookings <span class="nav-badge" id="badgeBookings" style="display:none;"></span></div>
+      <div class="nav-item role-admin" data-view="products"><i class="fas fa-tshirt"></i> Store Products</div>
+      <div class="nav-item role-admin" data-view="electronics"><i class="fas fa-plug"></i> Electronics</div>
+      <div class="nav-item role-admin" data-view="interior"><i class="fas fa-couch"></i> Interior Design</div>
+      <div class="nav-item role-admin" data-view="carpentry"><i class="fas fa-hammer"></i> Carpentry</div>
+      <div class="nav-item role-admin" data-view="messages"><i class="fas fa-envelope"></i> Messages <span class="nav-badge" id="badgeMessages" style="display:none;"></span></div>
+      <div class="nav-item role-admin" data-view="applications"><i class="fas fa-clipboard-list"></i> Fundi Applications <span class="nav-badge" id="badgeApplications" style="display:none;"></span></div>
+      <div class="nav-item role-admin" data-view="reviews"><i class="fas fa-star"></i> Reviews</div>
+      <div class="nav-item role-admin super-only hidden" data-view="admins"><i class="fas fa-user-shield"></i> Admins</div>
+      <div class="nav-item role-fundi hidden" data-view="myprofile"><i class="fas fa-id-card"></i> My Profile</div>
+      <div class="nav-item role-fundi hidden" data-view="mybookings"><i class="fas fa-calendar-check"></i> My Bookings</div>
+    </div>
+    <div class="sidebar-foot">
+      <div class="who" id="whoAmI"></div>
+      <button class="logout-btn" onclick="doLogout()"><i class="fas fa-right-from-bracket"></i> Sign Out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
+        <div>
+          <h1 id="viewTitle">Dashboard</h1>
+          <div class="sub"><span class="conn-dot" id="connDot"></span><span id="connLabel">Connecting…</span></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="sync-btn role-admin hidden" id="syncNowBtn" onclick="syncNow()"><i class="fas fa-rotate"></i> Sync Now</button>
+      </div>
+    </div>
+    <div id="configBannerSlot"></div>
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="panel">
+        <div class="panel-head"><h3>Recent Activity</h3></div>
+        <div class="table-scroll"><table><tbody id="activityBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- FUNDIS -->
+    <div class="view" id="view-fundis">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Fundis Directory</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchFundis" placeholder="Search fundis…" oninput="renderFundisTable()"></div>
+            <select class="filter-select" id="filterFundiCategory" onchange="renderFundisTable()">
+              <option value="all">All categories</option>
+              <option value="tailoring">Tailoring</option>
+              <option value="carpentry">Carpentry</option>
+              <option value="interior">Interior Design</option>
+              <option value="painting">Painting</option>
+              <option value="electrical">Electrical</option>
+              <option value="electronics">Electronics</option>
+            </select>
+            <button class="btn btn-primary" onclick="openFundiModal()"><i class="fas fa-plus"></i> Add Fundi</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th></th><th>Name</th><th>Category</th><th>Experience</th><th>Rating</th><th>Status</th><th></th></tr></thead>
+          <tbody id="fundisBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- BOOKINGS -->
+    <div class="view" id="view-bookings">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Bookings</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchBookings" placeholder="Search bookings…" oninput="renderBookingsTable()"></div>
+            <select class="filter-select" id="filterBookingStatus" onchange="renderBookingsTable()">
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <button class="btn btn-primary" onclick="openBookingModal()"><i class="fas fa-plus"></i> Log Booking</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Customer</th><th>Service</th><th>Details</th><th>Date</th><th>Status</th><th></th></tr></thead>
+          <tbody id="bookingsBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="view" id="view-products">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Store Products</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchProducts" placeholder="Search products…" oninput="renderProductsTable()"></div>
+            <select class="filter-select" id="filterProductCategory" onchange="renderProductsTable()">
+              <option value="all">All categories</option>
+              <option value="womens">Women's</option>
+              <option value="mens">Men's</option>
+              <option value="children">Children</option>
+              <option value="traditional">Traditional</option>
+              <option value="school">School Uniforms</option>
+              <option value="occasion">Occasion Wear</option>
+              <option value="hire">Hire Collection</option>
+            </select>
+            <button class="btn btn-outline" onclick="openImportModal()"><i class="fas fa-cloud-arrow-up"></i> Import Static Data</button>
+            <button class="btn btn-primary" onclick="openProductModal()"><i class="fas fa-plus"></i> Add Product</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Badge</th><th></th></tr></thead>
+          <tbody id="productsBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ELECTRONICS / INTERIOR DESIGN / CARPENTRY — separate catalogs, own collections -->
+    <div class="view" id="view-electronics">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Electronics</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchElectronics" placeholder="Search electronics…" oninput="renderCatalogTable('electronics')"></div>
+            <button class="btn btn-primary" onclick="openCatalogModal('electronics')"><i class="fas fa-plus"></i> Add Item</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Name</th><th>Subcategory</th><th>Price</th><th>Description</th><th></th></tr></thead>
+          <tbody id="electronicsBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-interior">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Interior Design Shop</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchInterior" placeholder="Search interior products…" oninput="renderCatalogTable('interior')"></div>
+            <button class="btn btn-primary" onclick="openCatalogModal('interior')"><i class="fas fa-plus"></i> Add Item</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Name</th><th>Subcategory</th><th>Price</th><th>Description</th><th></th></tr></thead>
+          <tbody id="interiorBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-carpentry">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Carpentry</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchCarpentry" placeholder="Search carpentry items…" oninput="renderCatalogTable('carpentry')"></div>
+            <button class="btn btn-primary" onclick="openCatalogModal('carpentry')"><i class="fas fa-plus"></i> Add Item</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Name</th><th>Subcategory</th><th>Price</th><th>Description</th><th></th></tr></thead>
+          <tbody id="carpentryBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- MESSAGES -->
+    <div class="view" id="view-messages">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Contact Messages</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchMessages" placeholder="Search messages…" oninput="renderMessagesTable()"></div>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>From</th><th>Service</th><th>Message</th><th>Received</th><th>Status</th><th></th></tr></thead>
+          <tbody id="messagesBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- APPLICATIONS -->
+    <div class="view" id="view-applications">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Fundi Applications</h3>
+          <div class="toolbar">
+            <div class="search-box"><i class="fas fa-search"></i><input id="searchApplications" placeholder="Search applicants…" oninput="renderApplicationsTable()"></div>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Name</th><th>Specialty</th><th>Location</th><th>Applied</th><th>Status</th><th></th></tr></thead>
+          <tbody id="applicationsBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- REVIEWS -->
+    <div class="view" id="view-reviews">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Customer Reviews</h3>
+          <div class="toolbar">
+            <button class="btn btn-primary" onclick="openReviewModal()"><i class="fas fa-plus"></i> Add Review</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th></th><th>Name</th><th>Service</th><th>Rating</th><th>Review</th><th></th></tr></thead>
+          <tbody id="reviewsBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ADMINS (super admin only) -->
+    <div class="view" id="view-admins">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Admin Accounts</h3>
+          <div class="toolbar">
+            <button class="btn btn-primary" onclick="openAdminModal()"><i class="fas fa-plus"></i> Add Admin</button>
+          </div>
+        </div>
+        <div class="hint" style="margin:-4px 0 14px;">Only Super Admins can see this page or manage accounts. Every admin here can sign in and use the full dashboard — Super Admin just adds the ability to manage other admins.</div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Username</th><th>Name</th><th>Role</th><th></th></tr></thead>
+          <tbody id="adminsBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- MY PROFILE (fundi) -->
+    <div class="view" id="view-myprofile">
+      <div class="panel">
+        <div class="panel-head"><h3>My Profile</h3></div>
+        <div class="modal-body" id="myProfileBox"></div>
+      </div>
+    </div>
+
+    <!-- MY BOOKINGS (fundi) -->
+    <div class="view" id="view-mybookings">
+      <div class="panel">
+        <div class="panel-head"><h3>My Bookings</h3></div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Customer</th><th>Service</th><th>Details</th><th>Date</th><th>Status</th></tr></thead>
+          <tbody id="myBookingsBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* =====================================================================
+   LOGIN MODE — SOKO HURU STYLE (no Firebase Auth)
+   Both admin and fundi sign-in are checked client-side against records
+   read straight out of the Realtime Database (fm_admins / fm_fundis),
+   the same pattern used by the Soko Huru admin portal. There is no
+   Firebase Authentication involved — no signed-in "auth" identity, no
+   password hashing. This is simpler to set up (no Firebase Console user
+   management) but it means:
+     • Database rules must be fully open (".read": true, ".write": true)
+       for this file to read/write anything at all — there's no "auth"
+       object for rules to check against anymore.
+     • Every admin and fundi password/PIN is sitting in plain text in a
+       database that anyone with the databaseURL can read directly.
+   Treat this like a shared-office whiteboard password, not a real login
+   system — fine for a small trusted crew, not for anything sensitive.
+   First time the app runs with an empty fm_admins node, it seeds one
+   default account: username "admin", password "admin1234". Change that
+   password (or add more accounts) by editing fm_admins directly in the
+   Firebase console → Realtime Database → Data tab.
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDv6-aqdNHiPrQNlmNCZV8CC6z4huPfGcA",
+  authDomain: "fundimtaani-d5de9.firebaseapp.com",
+  databaseURL: "https://fundimtaani-d5de9-default-rtdb.firebaseio.com",
+  projectId: "fundimtaani-d5de9",
+  storageBucket: "fundimtaani-d5de9.firebasestorage.app",
+  messagingSenderId: "82280323694",
+  appId: "1:82280323694:web:cac0f25e6a92936e39e47f"
+};
+const CONFIG_IS_PLACEHOLDER = Object.values(firebaseConfig).some(v => String(v).includes('REPLACE_ME'));
+
+if (!CONFIG_IS_PLACEHOLDER) {
+  firebase.initializeApp(firebaseConfig);
+} else {
+  document.getElementById('configBannerSlot').innerHTML =
+    '<div class="config-banner"><i class="fas fa-triangle-exclamation"></i> Firebase isn\'t configured yet — open this file and paste your project\'s config into <code>firebaseConfig</code> near the top of the script, then reload. Nothing will save until that\'s done.</div>';
+}
+
+let db;
+let currentUser = null;      // { role:'admin'|'fundi', id:<record id> }
+let currentRole = null;      // 'admin' | 'fundi'
+let currentFundiId = null;
+let sessionResolved = false;
+const LOADED_KEYS = ['admins','fundis','bookings','products','messages','applications','reviews','electronics','interior','carpentry'];
+const _loaded = {};
+const DATA = { admins:{}, fundis:{}, bookings:{}, products:{}, messages:{}, applications:{}, reviews:{}, electronics:{}, interior:{}, carpentry:{} };
+let _rerenderQueued = {};
+
+function toast(msg, type='success'){
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<i class="fas ${type==='success'?'fa-circle-check':'fa-circle-exclamation'}"></i> ${escapeHtml(msg)}`;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function timeAgo(ts){
+  if(!ts) return '—';
+  const s = Math.floor((Date.now()-ts)/1000);
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+/* ---------------- LOGIN TABS ---------------- */
+function switchLoginTab(tab){
+  document.getElementById('tabAdminBtn').classList.toggle('active', tab==='admin');
+  document.getElementById('tabFundiBtn').classList.toggle('active', tab==='fundi');
+  document.getElementById('paneAdmin').classList.toggle('active', tab==='admin');
+  document.getElementById('paneFundi').classList.toggle('active', tab==='fundi');
+  hideLoginError();
+}
+function showLoginError(msg){
+  const el = document.getElementById('loginError');
+  document.getElementById('loginErrorText').textContent = msg;
+  el.classList.add('show');
+  el.classList.remove('shake');
+  void el.offsetWidth; // restart the animation
+  el.classList.add('shake');
+}
+function hideLoginError(){
+  const el = document.getElementById('loginError');
+  el.classList.remove('show');
+  document.getElementById('loginErrorText').textContent = '';
+}
+function setBtnLoading(btn, loading){
+  btn.disabled = loading;
+  btn.classList.toggle('loading', loading);
+}
+
+/* ---------------- AUTH (client-side, matches Soko Huru's login) ---------------- */
+function doLogin(){
+  const btn = document.getElementById('loginBtn');
+  try{
+    if (CONFIG_IS_PLACEHOLDER){ showLoginError('Firebase config not set up yet.'); return; }
+    if (!db || !_loaded.admins){ showLoginError('Still connecting to Firebase — try again in a second.'); return; }
+    const username = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const pass = document.getElementById('loginPassword').value;
+    if(!username || !pass){ showLoginError('Enter your username and password.'); return; }
+    setBtnLoading(btn, true);
+    hideLoginError();
+    localStorage.removeItem('fm_session');
+    // Tiny delay so the spinner is visible even though the check below is
+    // instant (it's just comparing against data already loaded locally).
+    setTimeout(()=>{
+      const match = Object.entries(DATA.admins).find(([id,a]) =>
+        (a.username||'').trim().toLowerCase()===username && String(a.password||'')===pass);
+      setBtnLoading(btn, false);
+      if(!match){ showLoginError('Wrong username or password.'); return; }
+      currentRole = 'admin'; currentFundiId = null; currentUser = { role:'admin', id: match[0] };
+      localStorage.setItem('fm_session', JSON.stringify(currentUser));
+      launchApp();
+    }, 300);
+  } catch(err){
+    console.error('doLogin threw:', err);
+    showLoginError('Something went wrong signing in — check the browser console for details.');
+    setBtnLoading(btn, false);
+  }
+}
+
+function normalizePhone(v){
+  return String(v||'').replace(/\D/g,'').replace(/^254/,'0').replace(/^(\d{9})$/,'0$1');
+}
+function doFundiLogin(){
+  const btn = document.getElementById('fundiLoginBtn');
+  try{
+    if (CONFIG_IS_PLACEHOLDER){ showLoginError('Firebase config not set up yet.'); return; }
+    if (!db || !_loaded.fundis){ showLoginError('Still connecting to Firebase — try again in a second.'); return; }
+    const phone = normalizePhone(document.getElementById('fundiPhone').value);
+    const pin = document.getElementById('fundiPin').value.trim();
+    if(!phone || !pin){ showLoginError('Enter your phone and PIN.'); return; }
+    setBtnLoading(btn, true);
+    hideLoginError();
+    localStorage.removeItem('fm_session');
+    setTimeout(()=>{
+      const match = Object.entries(DATA.fundis).find(([id,f]) =>
+        normalizePhone(f.phone)===phone && String(f.pin||'')===pin);
+      setBtnLoading(btn, false);
+      if(!match){ showLoginError('Phone or PIN not recognized.'); return; }
+      currentRole = 'fundi'; currentFundiId = match[0]; currentUser = { role:'fundi', id: match[0] };
+      localStorage.setItem('fm_session', JSON.stringify(currentUser));
+      launchApp();
+    }, 300);
+  } catch(err){
+    console.error('doFundiLogin threw:', err);
+    showLoginError('Something went wrong signing in — check the browser console for details.');
+    setBtnLoading(btn, false);
+  }
+}
+
+function doLogout(){
+  localStorage.removeItem('fm_session');
+  currentUser = null; currentRole = null; currentFundiId = null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('fundiPin').value = '';
+}
+
+function launchApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const adminRecord = currentRole==='admin' ? DATA.admins[currentUser.id] : null;
+  document.getElementById('whoAmI').innerHTML = currentRole==='admin'
+    ? escapeHtml((adminRecord && adminRecord.username) || 'Admin') + '<span class="role-pill">Admin</span>'
+    : 'Fundi Portal<span class="role-pill">Fundi</span>';
+  applyRoleUI(currentRole);
+}
+
+// Called once every fm_* collection has delivered its first snapshot.
+// Restores a saved session if it still points at a real record, otherwise
+// leaves the login screen showing.
+function resolveSession(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem('fm_session')||'null'); }catch(e){ saved = null; }
+  if(saved && saved.role==='admin' && DATA.admins[saved.id]){
+    currentRole='admin'; currentFundiId=null; currentUser=saved; launchApp(); return;
+  }
+  if(saved && saved.role==='fundi' && DATA.fundis[saved.id]){
+    currentRole='fundi'; currentFundiId=saved.id; currentUser=saved; launchApp(); return;
+  }
+  if(saved) localStorage.removeItem('fm_session');
+  document.getElementById('loginScreen').style.display='flex';
+}
+
+function initApp(){
+  db = firebase.database();
+  db.ref('.info/connected').on('value', snap => {
+    const on = snap.val() === true;
+    document.getElementById('connDot').classList.toggle('off', !on);
+    document.getElementById('connLabel').textContent = on ? 'Live' : 'Offline';
+  });
+  // All collections load unconditionally at boot — there's no auth state to
+  // gate them behind anymore, so login only controls which screen is shown.
+  LOADED_KEYS.forEach(key => {
+    db.ref('fm_'+key).on('value', snap => {
+      DATA[key] = snap.val() || {};
+      if(key==='admins' && !_loaded.admins && !Object.keys(DATA.admins).length){
+        // First run: seed one default account so there's a way in.
+        db.ref('fm_admins/a0').set({ id:'a0', username:'admin', password:'admin1234', name:'Administrator', role:'super', createdAt: Date.now() });
+      }
+      _loaded[key] = true;
+      if(!sessionResolved && LOADED_KEYS.every(k => _loaded[k])){
+        sessionResolved = true;
+        resolveSession();
+      }
+      if(sessionResolved) queueRerender(key);
+    });
+  });
+}
+/* =====================================================================
+   EXPLORE MODE — TEMPORARY: bypasses the login screen so you can click
+   through the admin UI without an account. Nothing reads or writes to
+   Firebase while this is on — tables show empty states, and Save /
+   Delete / Sync are blocked with a toast instead of a raw error.
+   To restore real login: set EXPLORE_MODE to false (or delete this block).
+   ===================================================================== */
+const EXPLORE_MODE = false;
+if (EXPLORE_MODE) {
+  currentRole = 'admin';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('whoAmI').innerHTML = 'Explore Mode<span class="role-pill">Admin</span>';
+  applyRoleUI('admin');
+  renderDashboard(); renderFundisTable(); renderBookingsTable(); renderProductsTable();
+  renderMessagesTable(); renderApplicationsTable(); renderReviewsTable();
+  renderCatalogTable('electronics'); renderCatalogTable('interior'); renderCatalogTable('carpentry');
+  updateBadges();
+} else if (!CONFIG_IS_PLACEHOLDER) {
+  initApp();
+}
+
+/* ---------------- ROLE-BASED UI ---------------- */
+function isSuperAdmin(){
+  return currentRole==='admin' && currentUser && DATA.admins[currentUser.id] && DATA.admins[currentUser.id].role==='super';
+}
+function applyRoleUI(role){
+  document.querySelectorAll('.nav-item.role-admin').forEach(el=>el.classList.toggle('hidden', role!=='admin'));
+  document.querySelectorAll('.nav-item.role-fundi').forEach(el=>el.classList.toggle('hidden', role!=='fundi'));
+  document.querySelectorAll('.nav-item.super-only').forEach(el=>el.classList.toggle('hidden', role!=='admin' || !isSuperAdmin()));
+  document.getElementById('syncNowBtn').classList.toggle('hidden', role!=='admin');
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  const firstVisible = document.querySelector('.nav-item:not(.hidden)');
+  if(firstVisible){
+    firstVisible.classList.add('active');
+    const v = firstVisible.dataset.view;
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('viewTitle').textContent = firstVisible.textContent.trim().replace(/\d+$/,'');
+  }
+}
+
+/* ---------------- REALTIME RE-RENDER QUEUE ---------------- */
+function queueRerender(key){
+  if(_rerenderQueued[key]) return;
+  _rerenderQueued[key] = true;
+  requestAnimationFrame(()=>{
+    _rerenderQueued[key] = false;
+    if(currentRole==='admin'){
+      renderDashboard();
+      if(key==='fundis') renderFundisTable();
+      if(key==='bookings') renderBookingsTable();
+      if(key==='products') renderProductsTable();
+      if(key==='messages') renderMessagesTable();
+      if(key==='applications') renderApplicationsTable();
+      if(key==='reviews') renderReviewsTable();
+      if(['electronics','interior','carpentry'].includes(key)) renderCatalogTable(key);
+      if(key==='admins'){
+        document.querySelectorAll('.nav-item.super-only').forEach(el=>el.classList.toggle('hidden', !isSuperAdmin()));
+        if(isSuperAdmin()) renderAdminsTable();
+      }
+      updateBadges();
+    } else if(currentRole==='fundi'){
+      if(key==='fundis') renderMyProfile();
+      if(key==='bookings') renderMyBookings();
+    }
+  });
+}
+
+/* ---------------- MANUAL SYNC ---------------- */
+function syncNow(){
+  if(!db){ toast("Explore mode — Firebase login is bypassed, so there's nothing to sync.",'error'); return; }
+  const btn = document.getElementById('syncNowBtn');
+  btn.classList.add('spinning'); btn.disabled = true;
+  const keys = ['fundis','bookings','products','messages','applications','reviews','electronics','interior','carpentry'];
+  Promise.all(keys.map(key => db.ref('fm_'+key).once('value').then(snap=>{ DATA[key] = snap.val() || {}; })))
+    .then(()=>{
+      renderDashboard(); renderFundisTable(); renderBookingsTable(); renderProductsTable();
+      renderMessagesTable(); renderApplicationsTable(); renderReviewsTable();
+      renderCatalogTable('electronics'); renderCatalogTable('interior'); renderCatalogTable('carpentry');
+      updateBadges();
+      toast('Synced with Firebase');
+    })
+    .catch(err=>toast(err.message,'error'))
+    .finally(()=>{ btn.classList.remove('spinning'); btn.disabled = false; });
+}
+
+/* ---------------- NAV ---------------- */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    const v = item.dataset.view;
+    document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('viewTitle').textContent = item.textContent.trim().replace(/\d+$/,'');
+    document.getElementById('sidebar').classList.remove('open');
+  });
+});
+
+function updateBadges(){
+  const newMsgs = Object.values(DATA.messages).filter(m=>m.status==='new').length;
+  const pendApps = Object.values(DATA.applications).filter(a=>a.status==='pending').length;
+  const pendBookings = Object.values(DATA.bookings).filter(b=>b.status==='pending').length;
+  setBadge('badgeMessages', newMsgs);
+  setBadge('badgeApplications', pendApps);
+  setBadge('badgeBookings', pendBookings);
+}
+function setBadge(id,count){
+  const el = document.getElementById(id);
+  if(count>0){ el.style.display='inline-block'; el.textContent=count; } else { el.style.display='none'; }
+}
+
+/* ---------------- DASHBOARD ---------------- */
+function renderDashboard(){
+  const fundis = Object.values(DATA.fundis), bookings = Object.values(DATA.bookings),
+        products = Object.values(DATA.products), messages = Object.values(DATA.messages),
+        apps = Object.values(DATA.applications), reviews = Object.values(DATA.reviews);
+  const kpis = [
+    {label:'Fundis', num:fundis.length, icon:'fa-user-hard-hat'},
+    {label:'Pending Bookings', num:bookings.filter(b=>b.status==='pending').length, icon:'fa-calendar-check'},
+    {label:'Store Products', num:products.length, icon:'fa-tshirt'},
+    {label:'New Messages', num:messages.filter(m=>m.status==='new').length, icon:'fa-envelope'},
+    {label:'Pending Applications', num:apps.filter(a=>a.status==='pending').length, icon:'fa-clipboard-list'},
+    {label:'Reviews', num:reviews.length, icon:'fa-star'},
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k=>`<div class="kpi-card"><i class="fas ${k.icon}"></i><div class="num">${k.num}</div><div class="lbl">${k.label}</div></div>`).join('');
+
+  const items = [];
+  Object.entries(DATA.messages).forEach(([id,m])=>items.push({t:m.createdAt, html:`<i class="fas fa-envelope" style="color:var(--primary);width:16px;"></i> New message from <strong>${escapeHtml(m.name||'Someone')}</strong> — ${escapeHtml((m.message||'').slice(0,60))}`}));
+  Object.entries(DATA.applications).forEach(([id,a])=>items.push({t:a.createdAt, html:`<i class="fas fa-clipboard-list" style="color:var(--warning);width:16px;"></i> Fundi application from <strong>${escapeHtml(a.name||'Someone')}</strong> (${escapeHtml(a.specialty||'')})`}));
+  Object.entries(DATA.bookings).forEach(([id,b])=>items.push({t:b.createdAt, html:`<i class="fas fa-calendar-check" style="color:var(--success);width:16px;"></i> Booking logged for <strong>${escapeHtml(b.customerName||'Someone')}</strong> — ${escapeHtml(b.service||'')}`}));
+  items.sort((a,b)=>(b.t||0)-(a.t||0));
+  const body = document.getElementById('activityBody');
+  if(!items.length){ body.innerHTML = '<tr><td class="empty-state"><i class="fas fa-inbox"></i>No activity yet — new messages, applications and bookings will show up here.</td></tr>'; return; }
+  body.innerHTML = items.slice(0,12).map(it=>`<tr><td>${it.html}</td><td class="cell-sub" style="text-align:right;white-space:nowrap;">${timeAgo(it.t)}</td></tr>`).join('');
+}
+
+/* ---------------- GENERIC MODAL HELPERS ---------------- */
+function openModal(html){ document.getElementById('modalBox').innerHTML = html; document.getElementById('modalOverlay').classList.add('active'); }
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('active'); }
+document.getElementById('modalOverlay').addEventListener('click', e=>{ if(e.target.id==='modalOverlay') closeModal(); });
+
+function saveRecord(collection, id, data, successMsg){
+  if(!db){ toast("Explore mode — Firebase login is bypassed, so changes aren't saved.",'error'); closeModal(); return; }
+  data.updatedAt = Date.now();
+  if(!id) data.createdAt = Date.now();
+  const ref = id ? db.ref('fm_'+collection+'/'+id) : db.ref('fm_'+collection).push();
+  (id ? ref.update(data) : ref.set(data))
+    .then(()=>{ toast(successMsg||'Saved'); closeModal(); })
+    .catch(err=>toast(err.message,'error'));
+}
+function deleteRecord(collection, id, label){
+  if(!db){ toast("Explore mode — Firebase login is bypassed, so changes aren't saved.",'error'); return; }
+  if(!confirm(`Delete ${label}? This can't be undone.`)) return;
+  db.ref('fm_'+collection+'/'+id).remove()
+    .then(()=>toast('Deleted'))
+    .catch(err=>toast(err.message,'error'));
+}
+function updateField(collection, id, field, value){
+  if(!db){ toast("Explore mode — Firebase login is bypassed, so changes aren't saved.",'error'); return; }
+  db.ref(`fm_${collection}/${id}/${field}`).set(value).catch(err=>toast(err.message,'error'));
+}
+
+/* ================= FUNDIS ================= */
+function renderFundisTable(){
+  const q = (document.getElementById('searchFundis')?.value||'').toLowerCase();
+  const cat = document.getElementById('filterFundiCategory')?.value||'all';
+  const rows = Object.entries(DATA.fundis).filter(([id,f])=>{
+    if(cat!=='all' && f.category!==cat) return false;
+    if(q && !(`${f.name} ${f.role}`.toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''));
+  const body = document.getElementById('fundisBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-user-hard-hat"></i>No fundis yet — add your first one.</td></tr>'; return; }
+  body.innerHTML = rows.map(([id,f])=>`
+    <tr>
+      <td><img class="avatar-mini" src="${escapeHtml(f.photo||'')}" onerror="this.style.visibility='hidden'"></td>
+      <td><div class="cell-name">${escapeHtml(f.name)}</div><div class="cell-sub">${escapeHtml(f.role||'')}</div></td>
+      <td>${escapeHtml(f.category||'—')}</td>
+      <td>${f.years?f.years+' yrs · '+(f.jobs||0)+' jobs':'—'}</td>
+      <td class="star-rating">${'★'.repeat(Math.round(f.rating||0))}<span class="cell-sub" style="color:var(--gray);">&nbsp;${f.rating||'—'}</span></td>
+      <td><span class="badge ${f.available?'badge-online':'badge-offline'}" style="cursor:pointer;" onclick="updateField('fundis','${id}','available',${!f.available})">${f.available?'Available':'Busy'}</span></td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openFundiModal('${id}')" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" onclick="deleteRecord('fundis','${id}','${escapeHtml(f.name).replace(/'/g,"")}')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+function openFundiModal(id){
+  const f = id ? DATA.fundis[id] : {};
+  openModal(`
+    <div class="modal-head"><h3>${id?'Edit':'Add'} Fundi</h3><button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Full Name</label><input id="f_name" value="${escapeHtml(f.name||'')}" placeholder="e.g. Mary Adhiambo"></div>
+      <div class="form-row two-col">
+        <div><label>Role / Title</label><input id="f_role" value="${escapeHtml(f.role||'')}" placeholder="e.g. Master Tailor"></div>
+        <div><label>Category</label><select id="f_category">
+          ${['tailoring','carpentry','interior','painting','electrical','electronics'].map(c=>`<option value="${c}" ${f.category===c?'selected':''}>${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('')}
+        </select></div>
+      </div>
+      <div class="form-row two-col">
+        <div><label>Phone (07XXXXXXXX)</label><input id="f_phone" value="${escapeHtml(f.phone||'')}" placeholder="792405060"></div>
+        <div><label>Portal PIN</label><input id="f_pin" value="${escapeHtml(f.pin||'')}" placeholder="4–6 digits" maxlength="6"></div>
+      </div>
+      <div class="hint" style="margin-top:-8px;margin-bottom:14px;">Phone + PIN is how this fundi signs into the Fundi tab on the login screen.</div>
+      <div class="form-row two-col">
+        <div><label>Years Experience</label><input id="f_years" type="number" min="0" value="${f.years||''}"></div>
+        <div><label>Rating (0–5)</label><input id="f_rating" type="number" step="0.1" min="0" max="5" value="${f.rating||''}"></div>
+      </div>
+      <div class="form-row"><label>Jobs Completed</label><input id="f_jobs" type="number" min="0" value="${f.jobs||''}"></div>
+      <div class="form-row"><label>Tags (comma-separated)</label><input id="f_tags" value="${escapeHtml((f.tags||[]).join(', '))}" placeholder="Bridal, Alterations, Uniforms"></div>
+      <div class="form-row"><label>Photo URL</label><input id="f_photo" value="${escapeHtml(f.photo||'')}" placeholder="https://…"></div>
+      <div class="form-row"><label>Bio</label><textarea id="f_bio">${escapeHtml(f.bio||'')}</textarea></div>
+      <div class="form-row checkbox-row"><input type="checkbox" id="f_available" ${f.available!==false?'checked':''}> <label style="margin:0;">Available now</label></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitFundi('${id||''}')">Save Fundi</button></div>
+  `);
+}
+function submitFundi(id){
+  const name = document.getElementById('f_name').value.trim();
+  if(!name){ toast('Name is required','error'); return; }
+  const data = {
+    name, role: document.getElementById('f_role').value.trim(),
+    category: document.getElementById('f_category').value,
+    phone: document.getElementById('f_phone').value.trim(),
+    pin: document.getElementById('f_pin').value.trim(),
+    years: Number(document.getElementById('f_years').value)||0,
+    rating: Number(document.getElementById('f_rating').value)||0,
+    jobs: Number(document.getElementById('f_jobs').value)||0,
+    tags: document.getElementById('f_tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    photo: document.getElementById('f_photo').value.trim(),
+    bio: document.getElementById('f_bio').value.trim(),
+    available: document.getElementById('f_available').checked
+  };
+  saveRecord('fundis', id, data, id?'Fundi updated':'Fundi added');
+}
+
+/* ================= BOOKINGS ================= */
+function renderBookingsTable(){
+  const q = (document.getElementById('searchBookings')?.value||'').toLowerCase();
+  const status = document.getElementById('filterBookingStatus')?.value||'all';
+  const rows = Object.entries(DATA.bookings).filter(([id,b])=>{
+    if(status!=='all' && b.status!==status) return false;
+    if(q && !(`${b.customerName} ${b.service} ${b.phone}`.toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  const body = document.getElementById('bookingsBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-calendar-check"></i>No bookings logged yet.</td></tr>'; return; }
+  const statuses = ['pending','confirmed','completed','cancelled'];
+  body.innerHTML = rows.map(([id,b])=>`
+    <tr>
+      <td><div class="cell-name">${escapeHtml(b.customerName||'—')}</div><div class="cell-sub">${escapeHtml(b.phone||'')}</div></td>
+      <td>${escapeHtml(b.service||'—')}</td>
+      <td class="cell-sub" style="max-width:220px;">${escapeHtml((b.details||'').slice(0,80))}</td>
+      <td class="cell-sub">${escapeHtml(b.preferredDate||'—')}</td>
+      <td><select class="filter-select" style="padding:5px 8px;font-size:.72rem;" onchange="updateField('bookings','${id}','status',this.value)">
+        ${statuses.map(s=>`<option value="${s}" ${b.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+      </select></td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openBookingModal('${id}')" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" onclick="deleteRecord('bookings','${id}','this booking')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+function openBookingModal(id){
+  const b = id ? DATA.bookings[id] : {};
+  openModal(`
+    <div class="modal-head"><h3>${id?'Edit':'Log'} Booking</h3><button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-row two-col">
+        <div><label>Customer Name</label><input id="b_name" value="${escapeHtml(b.customerName||'')}"></div>
+        <div><label>Phone</label><input id="b_phone" value="${escapeHtml(b.phone||'')}" placeholder="07XXXXXXXX"></div>
+      </div>
+      <div class="form-row two-col">
+        <div><label>Service</label><select id="b_service">
+          ${['Tailoring','Carpentry','Interior Design','Painting','Electrical','Electronics','Training','Other'].map(s=>`<option ${b.service===s?'selected':''}>${s}</option>`).join('')}
+        </select></div>
+        <div><label>Preferred Date</label><input id="b_date" type="date" value="${b.preferredDate||''}"></div>
+      </div>
+      <div class="form-row"><label>Location</label><input id="b_location" value="${escapeHtml(b.location||'')}"></div>
+      <div class="form-row"><label>Details</label><textarea id="b_details">${escapeHtml(b.details||'')}</textarea></div>
+      <div class="form-row two-col">
+        <div><label>Status</label><select id="b_status">
+          ${['pending','confirmed','completed','cancelled'].map(s=>`<option value="${s}" ${b.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+        </select></div>
+        <div><label>Assign to Fundi</label><select id="b_fundi">
+          <option value="">— Unassigned —</option>
+          ${Object.entries(DATA.fundis).sort((a,c)=>(a[1].name||'').localeCompare(c[1].name||'')).map(([fid,f])=>`<option value="${fid}" ${b.fundiId===fid?'selected':''}>${escapeHtml(f.name)}</option>`).join('')}
+        </select></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitBooking('${id||''}')">Save Booking</button></div>
+  `);
+}
+function submitBooking(id){
+  const customerName = document.getElementById('b_name').value.trim();
+  if(!customerName){ toast('Customer name is required','error'); return; }
+  const data = {
+    customerName, phone: document.getElementById('b_phone').value.trim(),
+    service: document.getElementById('b_service').value,
+    preferredDate: document.getElementById('b_date').value,
+    location: document.getElementById('b_location').value.trim(),
+    details: document.getElementById('b_details').value.trim(),
+    status: document.getElementById('b_status').value,
+    fundiId: document.getElementById('b_fundi').value || null,
+    source: 'admin'
+  };
+  saveRecord('bookings', id, data, id?'Booking updated':'Booking logged');
+}
+
+/* ================= PRODUCTS ================= */
+function renderProductsTable(){
+  const q = (document.getElementById('searchProducts')?.value||'').toLowerCase();
+  const cat = document.getElementById('filterProductCategory')?.value||'all';
+  const rows = Object.entries(DATA.products).filter(([id,p])=>{
+    if(cat!=='all' && p.category!==cat) return false;
+    if(q && !((p.name||'').toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''));
+  const body = document.getElementById('productsBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-tshirt"></i>No products yet — add your first one.</td></tr>'; return; }
+  body.innerHTML = rows.map(([id,p])=>`
+    <tr>
+      <td><img class="avatar-mini" style="border-radius:8px;" src="${escapeHtml(p.img||'')}" onerror="this.style.visibility='hidden'"></td>
+      <td><div class="cell-name">${escapeHtml(p.name)}</div><div class="cell-sub">${(p.sizes||[]).join(', ')}</div></td>
+      <td>${escapeHtml(p.category||'—')}</td>
+      <td>KES ${p.price||0}${p.originalPrice?`<span class="cell-sub" style="text-decoration:line-through;margin-left:6px;">${p.originalPrice}</span>`:''}${p.hirePerDay?`<div class="cell-sub">Hire: KES ${p.hirePerDay}/day</div>`:''}</td>
+      <td>${p.badge?`<span class="badge badge-confirmed">${escapeHtml(p.badge)}</span>`:'—'}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openProductModal('${id}')" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" onclick="deleteRecord('products','${id}','${escapeHtml(p.name).replace(/'/g,"")}')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+function openProductModal(id){
+  const p = id ? DATA.products[id] : {};
+  openModal(`
+    <div class="modal-head"><h3>${id?'Edit':'Add'} Product</h3><button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Name</label><input id="p_name" value="${escapeHtml(p.name||'')}"></div>
+      <div class="form-row two-col">
+        <div><label>Category</label><select id="p_category">
+          ${['womens','mens','children','traditional','school','occasion','hire'].map(c=>`<option value="${c}" ${p.category===c?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+        <div><label>Badge</label><select id="p_badge">
+          ${['','hot','new','sale','limited'].map(b=>`<option value="${b}" ${p.badge===b?'selected':''}>${b||'None'}</option>`).join('')}
+        </select></div>
+      </div>
+      <div class="form-row two-col">
+        <div><label>Price (KES)</label><input id="p_price" type="number" min="0" value="${p.price||''}"></div>
+        <div><label>Original Price (optional)</label><input id="p_orig" type="number" min="0" value="${p.originalPrice||''}"></div>
+      </div>
+      <div class="form-row two-col">
+        <div><label>Hire per day (optional)</label><input id="p_hire" type="number" min="0" value="${p.hirePerDay||''}"></div>
+        <div><label>Deposit (optional)</label><input id="p_deposit" type="number" min="0" value="${p.deposit||''}"></div>
+      </div>
+      <div class="form-row two-col">
+        <div><label>Sizes (comma-separated)</label><input id="p_sizes" value="${escapeHtml((p.sizes||[]).join(', '))}"></div>
+        <div><label>Colors (comma-separated)</label><input id="p_colors" value="${escapeHtml((p.colors||[]).join(', '))}"></div>
+      </div>
+      <div class="form-row"><label>Image URL</label><input id="p_img" value="${escapeHtml(p.img||'')}" placeholder="https://…"></div>
+      <div class="form-row"><label>Description</label><textarea id="p_desc">${escapeHtml(p.desc||'')}</textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitProduct('${id||''}')">Save Product</button></div>
+  `);
+}
+function submitProduct(id){
+  const name = document.getElementById('p_name').value.trim();
+  if(!name){ toast('Name is required','error'); return; }
+  const data = {
+    name, category: document.getElementById('p_category').value,
+    badge: document.getElementById('p_badge').value || null,
+    price: Number(document.getElementById('p_price').value)||0,
+    originalPrice: Number(document.getElementById('p_orig').value)||null,
+    hirePerDay: Number(document.getElementById('p_hire').value)||null,
+    deposit: Number(document.getElementById('p_deposit').value)||null,
+    sizes: document.getElementById('p_sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
+    colors: document.getElementById('p_colors').value.split(',').map(s=>s.trim()).filter(Boolean),
+    img: document.getElementById('p_img').value.trim(),
+    desc: document.getElementById('p_desc').value.trim()
+  };
+  saveRecord('products', id, data, id?'Product updated':'Product added');
+}
+
+/* ================= ELECTRONICS / INTERIOR / CARPENTRY (shared catalog CRUD) =================
+   Three separate Firebase collections (fm_electronics, fm_interior, fm_carpentry) —
+   kept apart from fm_products because their subcategories don't fit the clothing
+   category list, but they share the same simple item shape, so one set of
+   render/modal/submit functions handles all three, parameterized by collection key. */
+const CATALOG_DEFS = {
+  electronics: { label:'Electronics',       icon:'fa-plug'   },
+  interior:    { label:'Interior Design',    icon:'fa-couch'  },
+  carpentry:   { label:'Carpentry',          icon:'fa-hammer' }
+};
+function renderCatalogTable(key){
+  const def = CATALOG_DEFS[key];
+  const body = document.getElementById(key + 'Body');
+  if(!body) return;
+  const q = (document.getElementById('search' + key.charAt(0).toUpperCase() + key.slice(1))?.value||'').toLowerCase();
+  const rows = Object.entries(DATA[key]).filter(([id,p]) => !q || (p.name||'').toLowerCase().includes(q))
+    .sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''));
+  if(!rows.length){ body.innerHTML = `<tr><td colspan="5" class="empty-state"><i class="fas ${def.icon}"></i>No ${def.label.toLowerCase()} items yet.</td></tr>`; return; }
+  body.innerHTML = rows.map(([id,p])=>`
+    <tr>
+      <td><div class="cell-name">${escapeHtml(p.name||'')}</div>${p.badge?`<div class="cell-sub">${escapeHtml(p.badge)}</div>`:''}</td>
+      <td>${escapeHtml(p.category||'—')}</td>
+      <td>KES ${(p.price||0).toLocaleString()}${p.originalPrice?` <span class="cell-sub" style="text-decoration:line-through;">${Number(p.originalPrice).toLocaleString()}</span>`:''}</td>
+      <td class="cell-sub" style="max-width:240px;">${escapeHtml((p.desc||'').slice(0,90))}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openCatalogModal('${key}','${id}')" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" onclick="deleteRecord('${key}','${id}','${escapeHtml((p.name||'this item').replace(/'/g,"\\'"))}')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+function openCatalogModal(key, id){
+  const def = CATALOG_DEFS[key];
+  const p = id ? DATA[key][id] : {};
+  openModal(`
+    <div class="modal-head"><h3>${id?'Edit':'Add'} ${def.label} Item</h3><button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Name</label><input id="cat_name" value="${escapeHtml(p.name||'')}"></div>
+      <div class="form-row two-col">
+        <div><label>Subcategory</label><input id="cat_category" value="${escapeHtml(p.category||'')}" placeholder="e.g. living, beds, power"></div>
+        <div><label>Badge</label><select id="cat_badge">${['','hot','new','sale','limited'].map(b=>`<option value="${b}" ${p.badge===b?'selected':''}>${b||'None'}</option>`).join('')}</select></div>
+      </div>
+      <div class="form-row two-col">
+        <div><label>Price (KES)</label><input id="cat_price" type="number" min="0" value="${p.price||''}"></div>
+        <div><label>Original Price (optional)</label><input id="cat_orig" type="number" min="0" value="${p.originalPrice||''}"></div>
+      </div>
+      <div class="form-row"><label>Options / Variants (comma-separated)</label><input id="cat_options" value="${escapeHtml((p.options||[]).join(', '))}" placeholder="e.g. Black, White, XL"></div>
+      <div class="form-row"><label>Photo URL</label><input id="cat_img" value="${escapeHtml(p.img||'')}" placeholder="https://…"></div>
+      <div class="form-row"><label>Description</label><textarea id="cat_desc">${escapeHtml(p.desc||'')}</textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitCatalogItem('${key}','${id||''}')">Save Item</button></div>
+  `);
+}
+function submitCatalogItem(key, id){
+  const name = document.getElementById('cat_name').value.trim();
+  if(!name){ toast('Name is required','error'); return; }
+  const data = {
+    name,
+    category: document.getElementById('cat_category').value.trim(),
+    badge: document.getElementById('cat_badge').value || null,
+    price: Number(document.getElementById('cat_price').value)||0,
+    originalPrice: Number(document.getElementById('cat_orig').value)||null,
+    options: document.getElementById('cat_options').value.split(',').map(s=>s.trim()).filter(Boolean),
+    img: document.getElementById('cat_img').value.trim(),
+    desc: document.getElementById('cat_desc').value.trim()
+  };
+  saveRecord(key, id, data, id?'Item updated':'Item added');
+}
+
+/* ================= MESSAGES ================= */
+function renderMessagesTable(){
+  const q = (document.getElementById('searchMessages')?.value||'').toLowerCase();
+  const rows = Object.entries(DATA.messages).filter(([id,m])=>!q || `${m.name} ${m.message}`.toLowerCase().includes(q))
+    .sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  const body = document.getElementById('messagesBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-envelope"></i>No messages yet — submissions from the site\'s contact form will appear here.</td></tr>'; return; }
+  body.innerHTML = rows.map(([id,m])=>`
+    <tr>
+      <td><div class="cell-name">${escapeHtml(m.name||'—')}</div><div class="cell-sub">${escapeHtml(m.phone||'')}</div></td>
+      <td>${escapeHtml(m.service||'—')}</td>
+      <td class="cell-sub" style="max-width:260px;">${escapeHtml((m.message||'').slice(0,100))}</td>
+      <td class="cell-sub">${timeAgo(m.createdAt)}</td>
+      <td><select class="filter-select" style="padding:5px 8px;font-size:.72rem;" onchange="updateField('messages','${id}','status',this.value)">
+        ${['new','contacted','closed'].map(s=>`<option value="${s}" ${m.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+      </select></td>
+      <td><div class="row-actions">
+        <a class="icon-btn" href="https://wa.me/254${(m.phone||'').replace(/^0/,'')}" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+        <button class="icon-btn danger" onclick="deleteRecord('messages','${id}','this message')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+
+/* ================= APPLICATIONS ================= */
+function renderApplicationsTable(){
+  const q = (document.getElementById('searchApplications')?.value||'').toLowerCase();
+  const rows = Object.entries(DATA.applications).filter(([id,a])=>!q || `${a.name} ${a.specialty}`.toLowerCase().includes(q))
+    .sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  const body = document.getElementById('applicationsBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-clipboard-list"></i>No applications yet — submissions from "Join Our Team" will appear here.</td></tr>'; return; }
+  body.innerHTML = rows.map(([id,a])=>`
+    <tr>
+      <td><div class="cell-name">${escapeHtml(a.name||'—')}</div><div class="cell-sub">${escapeHtml(a.phone||'')}</div></td>
+      <td>${escapeHtml(a.specialty||'—')}</td>
+      <td>${escapeHtml(a.location||'—')}</td>
+      <td class="cell-sub">${timeAgo(a.createdAt)}</td>
+      <td><span class="badge badge-${a.status||'pending'}">${(a.status||'pending')}</span></td>
+      <td><div class="row-actions">
+        ${a.status!=='approved'?`<button class="icon-btn" style="color:var(--success);border-color:var(--success);" onclick="approveApplication('${id}')" title="Approve → add as Fundi"><i class="fas fa-check"></i></button>`:''}
+        ${a.status!=='rejected'?`<button class="icon-btn danger" onclick="updateField('applications','${id}','status','rejected')" title="Reject"><i class="fas fa-xmark"></i></button>`:''}
+        <a class="icon-btn" href="https://wa.me/254${(a.phone||'').replace(/^0/,'')}" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+        <button class="icon-btn danger" onclick="deleteRecord('applications','${id}','this application')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+function specialtyToCategory(specialty){
+  const s = (specialty||'').toLowerCase();
+  if(s.includes('carpent')) return 'carpentry';
+  if(s.includes('interior') || s.includes('design')) return 'interior';
+  if(s.includes('paint')) return 'painting';
+  if(s.includes('electron')) return 'electronics';
+  if(s.includes('electric')) return 'electrical';
+  return 'tailoring';
+}
+function approveApplication(id){
+  if(!db){ toast("Explore mode — Firebase login is bypassed, so changes aren't saved.",'error'); return; }
+  const a = DATA.applications[id];
+  if(!a) return;
+  db.ref('fm_fundis').push({
+    name: a.name, role: a.specialty||'Fundi', category: specialtyToCategory(a.specialty),
+    phone: a.phone, years: 0, rating: 0, jobs: 0, tags: [], photo:'', bio:`Joined via application from ${a.location||'Kenya'}.`,
+    available: true, createdAt: Date.now()
+  }).then(()=>{
+    updateField('applications', id, 'status', 'approved');
+    toast(`${a.name} added to Fundis`);
+  }).catch(err=>toast(err.message,'error'));
+}
+
+/* ================= REVIEWS ================= */
+function renderReviewsTable(){
+  const rows = Object.entries(DATA.reviews).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  const body = document.getElementById('reviewsBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-star"></i>No reviews yet.</td></tr>'; return; }
+  body.innerHTML = rows.map(([id,r])=>`
+    <tr>
+      <td><img class="avatar-mini" src="${escapeHtml(r.avatar||'')}" onerror="this.style.visibility='hidden'"></td>
+      <td><div class="cell-name">${escapeHtml(r.name)}</div><div class="cell-sub">${escapeHtml(r.loc||'')}</div></td>
+      <td>${escapeHtml(r.service||'—')}</td>
+      <td class="star-rating">${'★'.repeat(r.stars||0)}${'☆'.repeat(5-(r.stars||0))}</td>
+      <td class="cell-sub" style="max-width:260px;">${escapeHtml((r.text||'').slice(0,90))}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openReviewModal('${id}')" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" onclick="deleteRecord('reviews','${id}','this review')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+function openReviewModal(id){
+  const r = id ? DATA.reviews[id] : {};
+  openModal(`
+    <div class="modal-head"><h3>${id?'Edit':'Add'} Review</h3><button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-row two-col">
+        <div><label>Customer Name</label><input id="r_name" value="${escapeHtml(r.name||'')}"></div>
+        <div><label>Location</label><input id="r_loc" value="${escapeHtml(r.loc||'')}"></div>
+      </div>
+      <div class="form-row two-col">
+        <div><label>Service</label><select id="r_service">
+          ${['Tailoring','Carpentry','Interior Design','Painting','Electrical','Electronics','Clothes Hire'].map(s=>`<option ${r.service===s?'selected':''}>${s}</option>`).join('')}
+        </select></div>
+        <div><label>Rating (1–5)</label><input id="r_stars" type="number" min="1" max="5" value="${r.stars||5}"></div>
+      </div>
+      <div class="form-row"><label>Avatar URL (optional)</label><input id="r_avatar" value="${escapeHtml(r.avatar||'')}"></div>
+      <div class="form-row"><label>Review Text</label><textarea id="r_text">${escapeHtml(r.text||'')}</textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitReview('${id||''}')">Save Review</button></div>
+  `);
+}
+function submitReview(id){
+  const name = document.getElementById('r_name').value.trim();
+  if(!name){ toast('Name is required','error'); return; }
+  const data = {
+    name, loc: document.getElementById('r_loc').value.trim(),
+    service: document.getElementById('r_service').value,
+    stars: Number(document.getElementById('r_stars').value)||5,
+    avatar: document.getElementById('r_avatar').value.trim(),
+    text: document.getElementById('r_text').value.trim(),
+    date: 'Recently'
+  };
+  saveRecord('reviews', id, data, id?'Review updated':'Review added');
+}
+
+/* ================= ADMIN MANAGEMENT (super admin only) ================= */
+function renderAdminsTable(){
+  const body = document.getElementById('adminsBody');
+  if(!body) return;
+  const rows = Object.entries(DATA.admins).sort((a,b)=>(a[1].username||'').localeCompare(b[1].username||''));
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="4" class="empty-state"><i class="fas fa-user-shield"></i>No admin accounts found.</td></tr>'; return; }
+  body.innerHTML = rows.map(([id,a])=>`
+    <tr>
+      <td><div class="cell-name">${escapeHtml(a.username||'')}</div>${id===currentUser.id?'<div class="cell-sub">This is you</div>':''}</td>
+      <td>${escapeHtml(a.name||'—')}</td>
+      <td><span class="badge ${a.role==='super'?'badge-online':'badge-offline'}">${a.role==='super'?'Super Admin':'Admin'}</span></td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openAdminModal('${id}')" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="icon-btn danger" onclick="deleteAdmin('${id}')" title="Delete"><i class="fas fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+}
+function openAdminModal(id){
+  const a = id ? DATA.admins[id] : {};
+  openModal(`
+    <div class="modal-head"><h3>${id?'Edit':'Add'} Admin</h3><button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Full Name</label><input id="ad_name" value="${escapeHtml(a.name||'')}" placeholder="e.g. Zul Malenya"></div>
+      <div class="form-row two-col">
+        <div><label>Username</label><input id="ad_username" value="${escapeHtml(a.username||'')}" placeholder="e.g. zul" autocomplete="off"></div>
+        <div><label>Password</label><input id="ad_password" type="text" value="${escapeHtml(a.password||'')}" placeholder="${id?'Leave as-is or change it':'Set a password'}" autocomplete="off"></div>
+      </div>
+      <div class="form-row"><label>Role</label><select id="ad_role">
+        <option value="admin" ${a.role!=='super'?'selected':''}>Admin</option>
+        <option value="super" ${a.role==='super'?'selected':''}>Super Admin</option>
+      </select></div>
+      <div class="hint" style="margin-top:-8px;">Super Admins can see and manage this Admins page; regular Admins can't. Passwords are stored as plain text here, same as everywhere else in this login mode — pick something you don't reuse elsewhere.</div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitAdmin('${id||''}')">Save Admin</button></div>
+  `);
+}
+function submitAdmin(id){
+  const name = document.getElementById('ad_name').value.trim();
+  const username = document.getElementById('ad_username').value.trim();
+  const password = document.getElementById('ad_password').value;
+  if(!username || !password){ toast('Username and password are required','error'); return; }
+  const usernameLower = username.toLowerCase();
+  const clash = Object.entries(DATA.admins).find(([aid,a]) => aid!==id && (a.username||'').toLowerCase()===usernameLower);
+  if(clash){ toast('That username is already taken','error'); return; }
+  const role = document.getElementById('ad_role').value;
+  // Never let the last Super Admin demote themselves (or be demoted) — that would lock everyone out of this page for good.
+  if(id && role!=='super'){
+    const supersLeft = Object.entries(DATA.admins).filter(([aid,a]) => aid!==id && a.role==='super').length;
+    if(supersLeft===0){ toast("Can't remove the last Super Admin — promote someone else first.",'error'); return; }
+  }
+  saveRecord('admins', id, { name, username, password, role }, id?'Admin updated':'Admin added');
+}
+function deleteAdmin(id){
+  const a = DATA.admins[id];
+  if(!a) return;
+  if(id===currentUser.id){ toast("You can't delete your own account while signed in.",'error'); return; }
+  if(a.role==='super'){
+    const supersLeft = Object.values(DATA.admins).filter(x=>x.role==='super').length;
+    if(supersLeft<=1){ toast("Can't delete the last Super Admin.",'error'); return; }
+  }
+  deleteRecord('admins', id, a.username||'this admin');
+}
+
+/* ================= FUNDI PORTAL ================= */
+function renderMyProfile(){
+  const f = DATA.fundis[currentFundiId];
+  const box = document.getElementById('myProfileBox');
+  if(!box) return;
+  if(!f){ box.innerHTML = '<div class="empty-state"><i class="fas fa-user-slash"></i>Your profile record was not found. Ask the admin to check your account.</div>'; return; }
+  box.innerHTML = `
+    <div class="form-row"><label>Full Name</label><input value="${escapeHtml(f.name||'')}" disabled></div>
+    <div class="form-row two-col">
+      <div><label>Role / Title</label><input id="mp_role" value="${escapeHtml(f.role||'')}"></div>
+      <div><label>Phone</label><input value="${escapeHtml(f.phone||'')}" disabled></div>
+    </div>
+    <div class="form-row"><label>Tags (comma-separated)</label><input id="mp_tags" value="${escapeHtml((f.tags||[]).join(', '))}"></div>
+    <div class="form-row"><label>Photo URL</label><input id="mp_photo" value="${escapeHtml(f.photo||'')}" placeholder="https://…"></div>
+    <div class="form-row"><label>Bio</label><textarea id="mp_bio">${escapeHtml(f.bio||'')}</textarea></div>
+    <div class="form-row checkbox-row"><input type="checkbox" id="mp_available" ${f.available!==false?'checked':''}> <label style="margin:0;">Available now</label></div>
+    <button class="btn btn-primary" onclick="saveMyProfile()"><i class="fas fa-check"></i> Save Changes</button>
+  `;
+}
+function saveMyProfile(){
+  if(!db){ toast("Explore mode — Firebase login is bypassed, so changes aren't saved.",'error'); return; }
+  const data = {
+    role: document.getElementById('mp_role').value.trim(),
+    tags: document.getElementById('mp_tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    photo: document.getElementById('mp_photo').value.trim(),
+    bio: document.getElementById('mp_bio').value.trim(),
+    available: document.getElementById('mp_available').checked,
+    updatedAt: Date.now()
+  };
+  db.ref('fm_fundis/'+currentFundiId).update(data).then(()=>toast('Profile updated')).catch(err=>toast(err.message,'error'));
+}
+function renderMyBookings(){
+  const body = document.getElementById('myBookingsBody');
+  if(!body) return;
+  const rows = Object.entries(DATA.bookings).filter(([id,b])=>b.fundiId===currentFundiId)
+    .sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="5" class="empty-state"><i class="fas fa-calendar-check"></i>No bookings assigned to you yet.</td></tr>'; return; }
+  const statuses = ['pending','confirmed','completed','cancelled'];
+  body.innerHTML = rows.map(([id,b])=>`
+    <tr>
+      <td><div class="cell-name">${escapeHtml(b.customerName||'—')}</div><div class="cell-sub">${escapeHtml(b.phone||'')}</div></td>
+      <td>${escapeHtml(b.service||'—')}</td>
+      <td class="cell-sub" style="max-width:220px;">${escapeHtml((b.details||'').slice(0,80))}</td>
+      <td class="cell-sub">${escapeHtml(b.preferredDate||'—')}</td>
+      <td><select class="filter-select" style="padding:5px 8px;font-size:.72rem;" onchange="updateField('bookings','${id}','status',this.value)">
+        ${statuses.map(s=>`<option value="${s}" ${b.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+      </select></td>
+    </tr>`).join('');
+}
+
+/* ================= IMPORT STATIC DATA ================= */
+function openImportModal(){
+  openModal(`
+    <div class="modal-head"><h3>Import Static Data to Firebase</h3><button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <p class="hint" style="margin-bottom:10px;">Paste JSON copied from your static/hardcoded site data — the arrays you had before Firebase. Accepts an object with <code>products</code> and/or <code>fundis</code> (also reads <code>stores</code> as an alias for fundis), or a bare array of products. Records are matched by name, so re-running this is safe — existing entries are skipped, not duplicated.</p>
+      <div class="form-row"><textarea id="importJson" style="min-height:220px;font-family:monospace;font-size:.78rem;" placeholder='{&#10;  "products":[{"name":"...","category":"womens","price":1500}],&#10;  "fundis":[{"name":"...","category":"tailoring","phone":"07..."}]&#10;}'></textarea></div>
+      <div id="importSummary" class="hint"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="runImport()"><i class="fas fa-cloud-arrow-up"></i> Import to Firebase</button></div>
+  `);
+}
+function runImport(){
+  if(!db){ toast("Explore mode — Firebase login is bypassed, so changes aren't saved.",'error'); return; }
+  const raw = document.getElementById('importJson').value.trim();
+  const summary = document.getElementById('importSummary');
+  if(!raw){ summary.textContent = 'Paste some JSON first.'; return; }
+  let parsed;
+  try{ parsed = JSON.parse(raw); } catch(e){ summary.textContent = 'Invalid JSON: ' + e.message; return; }
+  const products = Array.isArray(parsed) ? parsed : (parsed.products || []);
+  const fundis = Array.isArray(parsed) ? [] : (parsed.fundis || parsed.stores || []);
+  if(!products.length && !fundis.length){ summary.textContent = 'No products or fundis found in that JSON.'; return; }
+
+  const existingProductNames = new Set(Object.values(DATA.products).map(p=>(p.name||'').toLowerCase()));
+  const existingFundiNames = new Set(Object.values(DATA.fundis).map(f=>(f.name||'').toLowerCase()));
+  const jobs = [];
+  let skipped = 0;
+  products.forEach(p=>{
+    if(!p.name || existingProductNames.has(p.name.toLowerCase())){ if(p.name) skipped++; return; }
+    jobs.push(db.ref('fm_products').push({...p, createdAt: Date.now(), updatedAt: Date.now()}));
+  });
+  fundis.forEach(f=>{
+    if(!f.name || existingFundiNames.has(f.name.toLowerCase())){ if(f.name) skipped++; return; }
+    jobs.push(db.ref('fm_fundis').push({available:true, years:0, rating:0, jobs:0, tags:[], ...f, createdAt: Date.now(), updatedAt: Date.now()}));
+  });
+  if(!jobs.length){ summary.textContent = `Nothing new to import — ${skipped} record(s) already existed by name.`; return; }
+  summary.textContent = 'Importing…';
+  Promise.all(jobs).then(()=>{
+    toast(`Imported ${jobs.length} record(s)` + (skipped ? ` — skipped ${skipped} existing` : ''));
+    closeModal();
+  }).catch(err=>{ summary.textContent = err.message; });
+}
+</script>
+</body>
+</html>
